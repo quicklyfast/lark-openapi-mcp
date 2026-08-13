@@ -246,6 +246,27 @@ docker compose logs -f lark-mcp
 docker compose ps
 ```
 
+### 健康检测
+
+服务暴露 `GET /health` 接口，供编排系统、负载均衡器或监控探针检测存活状态，无需任何鉴权：
+
+```bash
+curl http://<host>:3000/health
+```
+
+响应示例：
+
+```json
+{
+  "status": "ok",
+  "service": "lark-mcp-server",
+  "version": "1.0.0",
+  "uptime": 3600
+}
+```
+
+Compose 已内置 `healthcheck`，默认每 30 秒探测一次 `/health`。可通过 `docker compose ps` 查看容器健康状态。
+
 ### 客户端连接
 
 服务默认暴露在 `http://<host>:3000/mcp`（端口可由 `LARK_MCP_PORT` 调整），客户端配置同前文，仅将 `url` 指向该地址并携带凭证 header 即可。

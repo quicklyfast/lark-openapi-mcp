@@ -13,6 +13,7 @@ import {
 } from './utils';
 import { LarkAuthHandler } from '../../auth';
 import { logger } from '../../utils/logger';
+import { currentVersion } from '../../utils/version';
 
 interface StreamableSession {
   server: McpServer;
@@ -167,10 +168,20 @@ export const initStreamableServer: InitTransportServerFunction = (
     }
   });
 
+  // Health check endpoint for orchestrators / load balancers. No service-level auth.
+  app.get('/health', (_req: Request, res: Response) => {
+    res.status(200).json({
+      status: 'ok',
+      service: 'lark-mcp-server',
+      version: currentVersion,
+      uptime: Math.round(process.uptime()),
+    });
+  });
+
   // Reclaim idle sessions to avoid leaking Lark clients and MCP servers.
   const cleanup = setInterval(() => {
     const now = Date.now();
-    for (const [sid, session] of sessions) {
+    for (const session of sessions.values()) {
       if (now - session.lastActivity > SESSION_TTL_MS) {
         void session.transport.close().catch(() => {});
       }

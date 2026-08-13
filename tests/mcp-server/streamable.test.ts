@@ -66,6 +66,7 @@ describe('initStreamableServer', () => {
   let postRouteHandler: any;
   let getRouteHandler: any;
   let deleteRouteHandler: any;
+  let healthRouteHandler: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -83,6 +84,8 @@ describe('initStreamableServer', () => {
     (mockApp.get as jest.Mock).mockImplementation((path, handler) => {
       if (path === '/mcp') {
         getRouteHandler = handler;
+      } else if (path === '/health') {
+        healthRouteHandler = handler;
       }
     });
 
@@ -108,8 +111,26 @@ describe('initStreamableServer', () => {
     expect(mockApp.use).toHaveBeenCalled();
     expect(mockApp.post).toHaveBeenCalledWith('/mcp', expect.any(Function));
     expect(mockApp.get).toHaveBeenCalledWith('/mcp', expect.any(Function));
+    expect(mockApp.get).toHaveBeenCalledWith('/health', expect.any(Function));
     expect(mockApp.delete).toHaveBeenCalledWith('/mcp', expect.any(Function));
     expect(mockApp.listen).toHaveBeenCalledWith(options.port, options.host, expect.any(Function));
+  });
+
+  it('GET /health返回健康状态', async () => {
+    const options: McpServerOptions = { host: 'localhost', port: 3000 };
+
+    initStreamableServer(jest.fn().mockReturnValue({}), options);
+
+    const mockRes = createMockResponse();
+    await healthRouteHandler({}, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(200);
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'ok',
+        service: 'lark-mcp-server',
+      }),
+    );
   });
 
   it('缺少host和port时抛出错误', () => {
