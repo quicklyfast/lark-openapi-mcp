@@ -1,0 +1,22 @@
+# Server-side multi-tenant proxy image (Bun runtime).
+#
+# Build the JS artifacts locally, then copy them into the image and install
+# dependencies with bun:
+#   yarn build
+#   docker build -f Dockerfile.server -t lark-mcp-server:latest .
+
+FROM oven/bun:slim
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package.json ./
+RUN bun install
+
+COPY dist ./dist
+
+EXPOSE 3000
+
+ENTRYPOINT ["bun", "dist/cli.js"]
+CMD ["mcp", "-m", "streamable", "--host", "0.0.0.0", "-p", "3000"]

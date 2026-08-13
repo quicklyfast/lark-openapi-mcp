@@ -1,11 +1,19 @@
-# Ignore dependencies and VCS
-node_modules
+# Ignore VCS
 .git
 .gitignore
 
-# Build artifacts and coverage
-dist
+# Dependencies and yarn berry cache (installed inside the image, not copied)
+node_modules
+.yarn
+.pnp.*
+
+# Coverage output (build artifact `dist` is kept: it is copied into the image)
 coverage
+
+# Deployment / local env
+.env
+docker-compose.yml
+*.iml
 
 # Logs and caches
 npm-debug.log*

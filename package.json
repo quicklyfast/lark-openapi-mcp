@@ -6,9 +6,7 @@
   "types": "dist/index.d.ts",
   "author": "chenli.idevlab",
   "license": "MIT",
-  "bin": {
-    "lark-mcp": "dist/cli.js"
-  },
+  "bin": "dist/cli.js",
   "files": [
     "dist",
     "docs",
@@ -24,7 +22,6 @@
     "dev": "ts-node src/index.ts",
     "dev:cli": "ts-node src/cli.ts",
     "format": "prettier --write \"src/**/*.ts\"",
-    "prepare": "yarn build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
@@ -43,7 +40,7 @@
   "dependencies": {
     "@larksuiteoapi/node-sdk": "^1.50.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
-    "axios": "^1.8.4",
+    "axios": "^1.19.0",
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
     "env-paths": "^2.2.1",

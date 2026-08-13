@@ -35,3 +35,9 @@ coverage/
 .nyc_output/ 
 
 api-json
+
+# yarn
+.yarn
+
+# idea
+/*.iml

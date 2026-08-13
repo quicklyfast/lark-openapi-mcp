@@ -1,0 +1,19 @@
+services:
+  lark-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: lark-mcp-server:latest
+    container_name: lark-mcp-server
+    restart: unless-stopped
+    ports:
+      - "${LARK_MCP_PORT:-3000}:3000"
+    environment:
+      # App ID allowlist for the proxy mode (comma/space separated). Empty = no restriction.
+      LARK_ALLOW_APP_IDS: ${LARK_ALLOW_APP_IDS:-}
+      # Default tool preset (can be overridden per client).
+      LARK_TOOLS: ${LARK_TOOLS:-preset.default}
+      # Default API domain; clients can override per request via X-Domain header.
+      LARK_DOMAIN: ${LARK_DOMAIN:-https://open.feishu.cn}
+      # Default token mode.
+      LARK_TOKEN_MODE: ${LARK_TOKEN_MODE:-auto}

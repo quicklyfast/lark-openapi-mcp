@@ -172,8 +172,50 @@ export LARK_ALLOW_APP_IDS=cli_aaa,cli_bbb
 **Q5：会话多久不活动会被回收？**
 服务端会回收超过 30 分钟无活动的会话，客户端下次请求会自动建立新会话。
 
+## Docker 部署
+
+项目提供了服务端代理专用的轻量镜像与 Compose 编排文件。
+
+### 构建镜像
+
+先在本地编译产物，再构建镜像（生产依赖会在镜像内安装）：
+
+```bash
+yarn build
+docker build -f Dockerfile.server -t lark-mcp-server:latest .
+```
+
+### 使用 Compose 一键部署
+
+1. 复制环境变量模板并按需修改：
+
+```bash
+cp .env.example .env
+# 编辑 .env，配置 LARK_ALLOW_APP_IDS 白名单等
+```
+
+2. 启动服务：
+
+```bash
+docker compose up -d --build
+```
+
+3. 查看日志与状态：
+
+```bash
+docker compose logs -f lark-mcp
+docker compose ps
+```
+
+### 客户端连接
+
+服务默认暴露在 `http://<host>:3000/mcp`（端口可由 `LARK_MCP_PORT` 调整），客户端配置同前文，仅将 `url` 指向该地址并携带凭证 header 即可。
+
+> 💡 **生产建议**：Compose 暴露的是明文 HTTP，生产环境请在前面加一层 HTTPS 反向代理（Nginx / Caddy），或在容器编排平台挂载 TLS 证书，避免 header 中的 App Secret 与用户令牌泄露。
+
 ## 相关文档
 
 - [配置指南](configuration-zh.md)
 - [命令行参考](../../reference/cli/cli-zh.md)
+- [Docker 使用指南](../docker/docker-zh.md)
 - [主要文档](../../../README_ZH.md)
