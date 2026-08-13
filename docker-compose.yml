@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
-    image: lark-mcp-server:latest
+    image: lark-mcp-server:1.0.0
     container_name: lark-mcp-server
     restart: unless-stopped
     ports:
