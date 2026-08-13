@@ -1,5 +1,57 @@
 import { Request, Response } from 'express';
+import { TokenMode } from '../../mcp-tool';
 import { McpServerOptions, mcpServerOptionSchema } from '../shared';
+
+/**
+ * Credentials passed by the MCP client via HTTP headers.
+ * Used in the server-side proxy mode to resolve credentials per session.
+ */
+export interface HeaderCredentials {
+  appId?: string;
+  appSecret?: string;
+  userAccessToken?: string;
+  domain?: string;
+}
+
+function headerValue(req: Request, name: string): string | undefined {
+  const value = req.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export function parseCredentialsFromRequest(req: Request): HeaderCredentials {
+  return {
+    appId: headerValue(req, 'x-app-id'),
+    appSecret: headerValue(req, 'x-app-secret'),
+    userAccessToken: headerValue(req, 'x-user-access-token'),
+    domain: headerValue(req, 'x-domain'),
+  };
+}
+
+export function parseBearerToken(req: Request): string | undefined {
+  const auth = req.headers.authorization;
+  if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
+    return auth.slice('Bearer '.length);
+  }
+  return undefined;
+}
+
+/**
+ * Merge header credentials into server options.
+ * Header credentials take precedence over startup/query options.
+ * When a user access token is provided via header, force user_access_token mode
+ * so the SDK never falls back to a tenant access token.
+ */
+export function mergeHeaderCredentials(options: McpServerOptions, creds: HeaderCredentials): McpServerOptions {
+  const hasUserToken = Boolean(creds.userAccessToken);
+  return {
+    ...options,
+    appId: creds.appId || options.appId,
+    appSecret: creds.appSecret || options.appSecret,
+    domain: creds.domain || options.domain,
+    userAccessToken: creds.userAccessToken || options.userAccessToken,
+    tokenMode: hasUserToken ? TokenMode.USER_ACCESS_TOKEN : options.tokenMode,
+  };
+}
 
 export enum JSONRPCErrorCodes {
   PARSE_ERROR = -32700,

@@ -94,6 +94,10 @@ program
   .option('-m, --mode <mode>', '(Optional) Transport Mode, stdio or sse or streamable (default: "stdio")')
   .option('--host <host>', '(Optional) Host to listen (default: "localhost")')
   .option('-p, --port <port>', '(Optional) Port to listen (default: "3000")')
+  .option(
+    '--allow-app-ids <appIds>',
+    '(Optional) Allowlist of App IDs for the server-side proxy mode, separated by commas or spaces. When set, only requests whose X-App-Id header is in the list are accepted (default: no restriction)',
+  )
   .option('--config <configPath>', '(Optional) Config file path (JSON)')
   .option('--debug', '(Optional) Enable debug mode')
   .action(async (options) => {
@@ -125,6 +129,7 @@ program
       ...mergedOptions,
       scope: parseStringArray(mergedOptions.scope),
       tools: parseStringArray(mergedOptions.tools),
+      allowAppIds: parseStringArray(mergedOptions.allowAppIds),
     });
   });
 

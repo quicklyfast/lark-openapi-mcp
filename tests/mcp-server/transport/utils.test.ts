@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import {
   JSONRPCErrorCodes,
   parseMCPServerOptionsFromRequest,
+  parseCredentialsFromRequest,
+  parseBearerToken,
+  mergeHeaderCredentials,
   sendJsonRpcError,
   sendResponseError,
 } from '../../../src/mcp-server/transport/utils';
@@ -54,6 +57,88 @@ describe('mcp-server/transport/utils', () => {
       expect(result.data).toEqual({});
       expect(result.message).toBeDefined();
       expect(result.message).toContain('Invalid enum value');
+    });
+  });
+
+  describe('parseCredentialsFromRequest', () => {
+    it('should parse credentials from headers', () => {
+      const req = {
+        headers: {
+          'x-app-id': 'cli_xxx',
+          'x-app-secret': 'secret',
+          'x-user-access-token': 'u-xxx',
+          'x-domain': 'https://open.larksuite.com',
+        },
+      } as any as Request;
+
+      const result = parseCredentialsFromRequest(req);
+
+      expect(result).toEqual({
+        appId: 'cli_xxx',
+        appSecret: 'secret',
+        userAccessToken: 'u-xxx',
+        domain: 'https://open.larksuite.com',
+      });
+    });
+
+    it('should return empty object when no credential headers present', () => {
+      const req = { headers: {} } as any as Request;
+
+      const result = parseCredentialsFromRequest(req);
+
+      expect(result).toEqual({
+        appId: undefined,
+        appSecret: undefined,
+        userAccessToken: undefined,
+        domain: undefined,
+      });
+    });
+  });
+
+  describe('parseBearerToken', () => {
+    it('should extract token from Bearer authorization header', () => {
+      const req = { headers: { authorization: 'Bearer abc123' } } as any as Request;
+
+      expect(parseBearerToken(req)).toBe('abc123');
+    });
+
+    it('should return undefined for non-Bearer or missing authorization header', () => {
+      expect(parseBearerToken({ headers: { authorization: 'Basic xyz' } } as any as Request)).toBeUndefined();
+      expect(parseBearerToken({ headers: {} } as any as Request)).toBeUndefined();
+    });
+  });
+
+  describe('mergeHeaderCredentials', () => {
+    it('should let header credentials override options', () => {
+      const options = {
+        appId: 'startup-app-id',
+        appSecret: 'startup-app-secret',
+        host: 'localhost',
+        port: 3000,
+      } as any;
+
+      const result = mergeHeaderCredentials(options, { appId: 'cli_xxx', appSecret: 'secret' });
+
+      expect(result.appId).toBe('cli_xxx');
+      expect(result.appSecret).toBe('secret');
+      expect(result.host).toBe('localhost');
+    });
+
+    it('should force user_access_token mode when a user token is provided', () => {
+      const options = { appId: 'cli_xxx', appSecret: 'secret', tokenMode: 'auto' } as any;
+
+      const result = mergeHeaderCredentials(options, { userAccessToken: 'u-xxx' });
+
+      expect(result.tokenMode).toBe('user_access_token');
+      expect(result.userAccessToken).toBe('u-xxx');
+    });
+
+    it('should keep original tokenMode when no user token is provided', () => {
+      const options = { appId: 'cli_xxx', appSecret: 'secret', tokenMode: 'auto' } as any;
+
+      const result = mergeHeaderCredentials(options, {});
+
+      expect(result.tokenMode).toBe('auto');
     });
   });
 

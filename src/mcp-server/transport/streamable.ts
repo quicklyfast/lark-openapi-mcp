@@ -1,9 +1,29 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express, { Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { InitTransportServerFunction } from '../shared';
-import { parseMCPServerOptionsFromRequest, sendJsonRpcError } from './utils';
+import {
+  parseMCPServerOptionsFromRequest,
+  parseCredentialsFromRequest,
+  parseBearerToken,
+  mergeHeaderCredentials,
+  sendJsonRpcError,
+} from './utils';
 import { LarkAuthHandler } from '../../auth';
 import { logger } from '../../utils/logger';
+
+interface StreamableSession {
+  server: McpServer;
+  transport: StreamableHTTPServerTransport;
+  lastActivity: number;
+}
+
+// Sessions are kept in-memory keyed by the MCP session id. A session is created on the
+// first `initialize` request and reused for every subsequent request, so the Lark Client
+// and its tools are built exactly once per client connection.
+const SESSION_TTL_MS = 30 * 60 * 1000;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
 export const initStreamableServer: InitTransportServerFunction = (
   getNewServer,
@@ -19,39 +39,93 @@ export const initStreamableServer: InitTransportServerFunction = (
   const app = express();
   app.use(express.json());
 
+  const sessions = new Map<string, StreamableSession>();
+
   let authHandler: LarkAuthHandler | undefined;
 
-  if (!userAccessToken && needAuthFlow) {
+  // The local OAuth handler is only needed when the single-tenant OAuth login flow is
+  // enabled. In the server-side proxy mode, credentials are provided per request via
+  // headers and no local auth handler (which requires startup appId/appSecret) is used.
+  if (!userAccessToken && needAuthFlow && oauth) {
     authHandler = new LarkAuthHandler(app, options);
-    if (oauth) {
-      authHandler.setupRoutes();
-    }
+    authHandler.setupRoutes();
   }
 
-  const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
-    if (authHandler && oauth) {
-      authHandler.authenticateRequest(req, res, next);
-    } else {
-      const authToken = req.headers.authorization?.split(' ')[1];
-      if (authToken) {
-        req.auth = { token: authToken, clientId: 'client_id_for_local_auth', scopes: [] };
-      }
-      next();
-    }
+  const allowAppIds = options.allowAppIds || [];
+
+  const sendUnauthorized = (res: Response, message: string) => {
+    res.status(401).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: null });
   };
 
-  app.post('/mcp', authMiddleware, async (req: Request, res: Response) => {
-    const token = req.auth?.token;
-    const { data } = parseMCPServerOptionsFromRequest(req);
-    const server = getNewServer({ ...options, ...data, userAccessToken: data.userAccessToken || token }, authHandler);
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-    res.on('close', () => {
-      transport.close();
-      server.close();
-    });
+  app.post('/mcp', async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.headers['mcp-session-id'];
 
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
+      // Reuse an existing session
+      if (typeof sessionId === 'string' && sessions.has(sessionId)) {
+        const session = sessions.get(sessionId)!;
+        session.lastActivity = Date.now();
+        await session.transport.handleRequest(req, res, req.body);
+        return;
+      }
+
+      // New session: resolve credentials from headers (server-side proxy mode).
+      // Fall back to startup credentials for backward compatibility (single-tenant).
+      const creds = parseCredentialsFromRequest(req);
+      if (!creds.userAccessToken) {
+        creds.userAccessToken = parseBearerToken(req);
+      }
+
+      if (allowAppIds.length && creds.appId && !allowAppIds.includes(creds.appId)) {
+        logger.warn(`[StreamableServerTransport] Rejected appId not in allowlist: ${creds.appId}`);
+        sendUnauthorized(res, 'App ID is not allowed');
+        return;
+      }
+
+      const data = parseMCPServerOptionsFromRequest(req).data;
+      const merged = mergeHeaderCredentials({ ...options, ...data }, creds);
+
+      if (!merged.appId || !merged.appSecret) {
+        sendUnauthorized(res, 'Missing X-App-Id / X-App-Secret headers');
+        return;
+      }
+
+      const server = getNewServer(merged, authHandler);
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => randomUUID(),
+        onsessioninitialized: (sid) => {
+          sessions.set(sid, { server, transport, lastActivity: Date.now() });
+        },
+      });
+
+      transport.onclose = () => {
+        const sid = transport.sessionId;
+        if (sid) {
+          sessions.delete(sid);
+        }
+        server.close().catch((error) => logger.error(`[StreamableServerTransport] Error closing server: ${error}`));
+      };
+
+      await server.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+    } catch (error) {
+      sendJsonRpcError(res, error as Error);
+    }
+  });
+
+  app.delete('/mcp', async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.headers['mcp-session-id'];
+      if (typeof sessionId === 'string' && sessions.has(sessionId)) {
+        await sessions.get(sessionId)!.transport.handleRequest(req, res);
+        return;
+      }
+      res
+        .status(404)
+        .json({ jsonrpc: '2.0', error: { code: -32001, message: 'Session not found' }, id: null });
+    } catch (error) {
+      sendJsonRpcError(res, error as Error);
+    }
   });
 
   const handleMethodNotAllowed = async (_req: Request, res: Response) => {
@@ -62,23 +136,22 @@ export const initStreamableServer: InitTransportServerFunction = (
 
   app.get('/mcp', async (req: Request, res: Response) => {
     try {
-      console.log('Received GET MCP request');
-      logger.info(`[StreamableServerTransport] Received GET MCP request`);
       await handleMethodNotAllowed(req, res);
     } catch (error) {
       sendJsonRpcError(res, error as Error);
     }
   });
 
-  app.delete('/mcp', async (req: Request, res: Response) => {
-    try {
-      console.log('Received DELETE MCP request');
-      logger.info(`[StreamableServerTransport] Received DELETE MCP request`);
-      await handleMethodNotAllowed(req, res);
-    } catch (error) {
-      sendJsonRpcError(res, error as Error);
+  // Reclaim idle sessions to avoid leaking Lark clients and MCP servers.
+  const cleanup = setInterval(() => {
+    const now = Date.now();
+    for (const [sid, session] of sessions) {
+      if (now - session.lastActivity > SESSION_TTL_MS) {
+        void session.transport.close().catch(() => {});
+      }
     }
-  });
+  }, CLEANUP_INTERVAL_MS);
+  cleanup.unref();
 
   app.listen(port, host, (error) => {
     if (error) {

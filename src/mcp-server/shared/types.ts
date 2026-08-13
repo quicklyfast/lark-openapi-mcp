@@ -25,6 +25,10 @@ export interface McpServerOptions {
   oauth?: boolean;
   scope?: string[];
 
+  // Allowlist of App IDs for the server-side proxy mode. When set, requests whose
+  // X-App-Id header is not in the list are rejected. Empty/undefined means no restriction.
+  allowAppIds?: string[];
+
   mode?: McpServerTransport;
   host?: string;
   port?: number;
