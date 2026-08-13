@@ -11,6 +11,8 @@ services:
     environment:
       # App ID allowlist for the proxy mode (comma/space separated). Empty = no restriction.
       LARK_ALLOW_APP_IDS: ${LARK_ALLOW_APP_IDS:-}
+      # Service-level access token allowlist (comma/space separated). Empty = no auth.
+      LARK_SERVER_ACCESS_TOKENS: ${LARK_SERVER_ACCESS_TOKENS:-}
       # Default tool preset (can be overridden per client).
       LARK_TOOLS: ${LARK_TOOLS:-preset.default}
       # Default API domain; clients can override per request via X-Domain header.

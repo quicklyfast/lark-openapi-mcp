@@ -29,6 +29,11 @@ export interface McpServerOptions {
   // X-App-Id header is not in the list are rejected. Empty/undefined means no restriction.
   allowAppIds?: string[];
 
+  // Allowlist of access tokens guarding the proxy service itself. When set, requests
+  // must carry one of these tokens in the X-Mcp-Access-Token header, otherwise they are
+  // rejected with 401. Empty/undefined disables service-level authentication.
+  serverAccessTokens?: string[];
+
   mode?: McpServerTransport;
   host?: string;
   port?: number;

@@ -4,6 +4,7 @@ import {
   parseMCPServerOptionsFromRequest,
   parseCredentialsFromRequest,
   parseBearerToken,
+  parseServerAccessToken,
   mergeHeaderCredentials,
   sendJsonRpcError,
   sendResponseError,
@@ -105,6 +106,18 @@ describe('mcp-server/transport/utils', () => {
     it('should return undefined for non-Bearer or missing authorization header', () => {
       expect(parseBearerToken({ headers: { authorization: 'Basic xyz' } } as any as Request)).toBeUndefined();
       expect(parseBearerToken({ headers: {} } as any as Request)).toBeUndefined();
+    });
+  });
+
+  describe('parseServerAccessToken', () => {
+    it('should extract token from x-mcp-access-token header', () => {
+      const req = { headers: { 'x-mcp-access-token': 'secret-token' } } as any as Request;
+
+      expect(parseServerAccessToken(req)).toBe('secret-token');
+    });
+
+    it('should return undefined when header is missing', () => {
+      expect(parseServerAccessToken({ headers: {} } as any as Request)).toBeUndefined();
     });
   });
 

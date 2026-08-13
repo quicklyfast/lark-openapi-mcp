@@ -98,6 +98,10 @@ program
     '--allow-app-ids <appIds>',
     '(Optional) Allowlist of App IDs for the server-side proxy mode, separated by commas or spaces. When set, only requests whose X-App-Id header is in the list are accepted (default: no restriction)',
   )
+  .option(
+    '--server-access-token <tokens>',
+    '(Optional) Allowlist of access tokens guarding the proxy service, separated by commas or spaces. When set, requests must carry one of them in the X-Mcp-Access-Token header (default: no service-level auth)',
+  )
   .option('--config <configPath>', '(Optional) Config file path (JSON)')
   .option('--debug', '(Optional) Enable debug mode')
   .action(async (options) => {
@@ -130,6 +134,7 @@ program
       scope: parseStringArray(mergedOptions.scope),
       tools: parseStringArray(mergedOptions.tools),
       allowAppIds: parseStringArray(mergedOptions.allowAppIds),
+      serverAccessTokens: parseStringArray(mergedOptions.serverAccessToken),
     });
   });
 

@@ -36,6 +36,14 @@ export function parseBearerToken(req: Request): string | undefined {
 }
 
 /**
+ * Read the service-level access token guarding the proxy service itself.
+ * Distinct from the Feishu user access token (X-User-Access-Token) and app credentials.
+ */
+export function parseServerAccessToken(req: Request): string | undefined {
+  return headerValue(req, 'x-mcp-access-token');
+}
+
+/**
  * Merge header credentials into server options.
  * Header credentials take precedence over startup/query options.
  * When a user access token is provided via header, force user_access_token mode

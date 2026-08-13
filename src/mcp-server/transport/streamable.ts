@@ -7,6 +7,7 @@ import {
   parseMCPServerOptionsFromRequest,
   parseCredentialsFromRequest,
   parseBearerToken,
+  parseServerAccessToken,
   mergeHeaderCredentials,
   sendJsonRpcError,
 } from './utils';
@@ -52,13 +53,33 @@ export const initStreamableServer: InitTransportServerFunction = (
   }
 
   const allowAppIds = options.allowAppIds || [];
+  const serverAccessTokens = options.serverAccessTokens || [];
 
   const sendUnauthorized = (res: Response, message: string) => {
     res.status(401).json({ jsonrpc: '2.0', error: { code: -32000, message }, id: null });
   };
 
+  // Guard the proxy service itself. When serverAccessTokens is configured, requests must
+  // carry one of the tokens in the X-Mcp-Access-Token header; otherwise reject with 401.
+  const requireServerAccessToken = (req: Request, res: Response): boolean => {
+    if (!serverAccessTokens.length) {
+      return true;
+    }
+    const token = parseServerAccessToken(req);
+    if (token && serverAccessTokens.includes(token)) {
+      return true;
+    }
+    logger.warn(`[StreamableServerTransport] Rejected request with invalid/missing MCP access token`);
+    sendUnauthorized(res, 'Invalid or missing MCP access token');
+    return false;
+  };
+
   app.post('/mcp', async (req: Request, res: Response) => {
     try {
+      if (!requireServerAccessToken(req, res)) {
+        return;
+      }
+
       const sessionId = req.headers['mcp-session-id'];
 
       // Reuse an existing session
@@ -115,6 +136,10 @@ export const initStreamableServer: InitTransportServerFunction = (
 
   app.delete('/mcp', async (req: Request, res: Response) => {
     try {
+      if (!requireServerAccessToken(req, res)) {
+        return;
+      }
+
       const sessionId = req.headers['mcp-session-id'];
       if (typeof sessionId === 'string' && sessions.has(sessionId)) {
         await sessions.get(sessionId)!.transport.handleRequest(req, res);

@@ -9,6 +9,7 @@
 - [客户端配置](#客户端配置)
 - [凭证头说明](#凭证头说明)
 - [App ID 白名单](#app-id-白名单)
+- [服务级访问令牌鉴权](#服务级访问令牌鉴权)
 - [环境变量](#环境变量)
 - [安全建议](#安全建议)
 - [常见问题](#常见问题)
@@ -137,11 +138,45 @@ npx -y @larksuiteoapi/lark-mcp mcp \
 export LARK_ALLOW_APP_IDS=cli_aaa,cli_bbb
 ```
 
+## 服务级访问令牌鉴权
+
+除飞书应用凭证外，你还可以为代理服务本身加一道访问令牌，防止非法人员使用代理：
+
+```bash
+npx -y @larksuiteoapi/lark-mcp mcp \
+  -m streamable \
+  --host 0.0.0.0 \
+  -p 3000 \
+  --server-access-token my_secret_token_123,my_other_token
+```
+
+配置后，客户端必须在请求头携带其中一个令牌：
+
+```json
+{
+  "mcpServers": {
+    "lark-mcp": {
+      "url": "https://your-server:3000/mcp",
+      "headers": {
+        "X-Mcp-Access-Token": "my_secret_token_123",
+        "X-App-Id": "cli_xxxx",
+        "X-App-Secret": "your_app_secret"
+      }
+    }
+  }
+}
+```
+
+- **未配置** `--server-access-token` 时，不启用服务级鉴权（保持向后兼容）。
+- **令牌不匹配或缺失**时返回 `401 Invalid or missing MCP access token`。
+- 支持多个令牌（逗号或空格分隔），方便为不同客户端分配独立令牌并按需吊销。
+
 ## 环境变量
 
 | 环境变量 | 说明 | 示例 |
 |----------|------|------|
 | `LARK_ALLOW_APP_IDS` | App ID 白名单，逗号或空格分隔，留空则不限制 | `cli_aaa,cli_bbb` |
+| `LARK_SERVER_ACCESS_TOKENS` | 服务级访问令牌白名单，逗号或空格分隔，留空则不鉴权 | `token1,token2` |
 | `LARK_DOMAIN` | 默认 API 域名（可被 `X-Domain` 头覆盖） | `https://open.feishu.cn` |
 | `LARK_TOOLS` | 默认启用的工具列表 | `preset.default` |
 | `LARK_TOKEN_MODE` | 默认令牌模式 | `auto` |
@@ -152,6 +187,7 @@ export LARK_ALLOW_APP_IDS=cli_aaa,cli_bbb
 
 - **必须使用 HTTPS**：header 中包含 App Secret 与用户令牌，明文 HTTP 会泄露凭证，生产环境务必配置 TLS 反向代理（如 Nginx / Caddy）。
 - **开启 App ID 白名单**：通过 `--allow-app-ids` 限制可连接的租户。
+- **开启服务级访问令牌**：通过 `--server-access-token` 防止未授权客户端接入代理。
 - **令牌轮换**：`user_access_token` 有有效期，过期后工具调用会返回飞书错误码，客户端需自行换取新令牌后重连。
 - **反向代理加固**：可将 `/mcp` 端点置于鉴权网关之后，限制来源 IP。
 
@@ -171,6 +207,9 @@ export LARK_ALLOW_APP_IDS=cli_aaa,cli_bbb
 
 **Q5：会话多久不活动会被回收？**
 服务端会回收超过 30 分钟无活动的会话，客户端下次请求会自动建立新会话。
+
+**Q6：为什么返回 `401 Invalid or missing MCP access token`？**
+服务端开启了服务级访问令牌鉴权，但客户端未携带 `X-Mcp-Access-Token` 头或令牌不在白名单内。请在客户端配置的 `headers` 中补充正确的令牌。
 
 ## Docker 部署
 

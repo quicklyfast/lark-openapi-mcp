@@ -218,6 +218,76 @@ describe('initStreamableServer', () => {
     expect(getMockServer).not.toHaveBeenCalled();
   });
 
+  it('配置服务级token时，缺失token返回401', async () => {
+    const options: McpServerOptions = {
+      host: 'localhost',
+      port: 3000,
+      serverAccessTokens: ['secret-token'],
+    };
+    const getMockServer = jest.fn();
+
+    initStreamableServer(getMockServer, options);
+
+    const mockReq = {
+      headers: { 'x-app-id': 'cli_xxx', 'x-app-secret': 'secret' },
+      query: {},
+      body: { jsonrpc: '2.0', method: 'initialize' },
+    };
+    const mockRes = createMockResponse();
+
+    await postRouteHandler(mockReq, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(401);
+    expect(getMockServer).not.toHaveBeenCalled();
+  });
+
+  it('配置服务级token时，token不匹配返回401', async () => {
+    const options: McpServerOptions = {
+      host: 'localhost',
+      port: 3000,
+      serverAccessTokens: ['secret-token'],
+    };
+    const getMockServer = jest.fn();
+
+    initStreamableServer(getMockServer, options);
+
+    const mockReq = {
+      headers: { 'x-app-id': 'cli_xxx', 'x-app-secret': 'secret', 'x-mcp-access-token': 'wrong' },
+      query: {},
+      body: { jsonrpc: '2.0', method: 'initialize' },
+    };
+    const mockRes = createMockResponse();
+
+    await postRouteHandler(mockReq, mockRes);
+
+    expect(mockRes.status).toHaveBeenCalledWith(401);
+    expect(getMockServer).not.toHaveBeenCalled();
+  });
+
+  it('配置服务级token时，正确token放行', async () => {
+    const options: McpServerOptions = {
+      appId: 'startup-app-id',
+      appSecret: 'startup-app-secret',
+      host: 'localhost',
+      port: 3000,
+      serverAccessTokens: ['secret-token'],
+    };
+    const getMockServer = jest.fn().mockReturnValue({ connect: jest.fn().mockResolvedValue(undefined), close: jest.fn() });
+
+    initStreamableServer(getMockServer, options);
+
+    const mockReq = {
+      headers: { 'x-mcp-access-token': 'secret-token' },
+      query: {},
+      body: { jsonrpc: '2.0', method: 'initialize' },
+    };
+    const mockRes = createMockResponse();
+
+    await postRouteHandler(mockReq, mockRes);
+
+    expect(getMockServer).toHaveBeenCalled();
+  });
+
   it('从Authorization Bearer头回退解析user access token', async () => {
     const options: McpServerOptions = {
       appId: 'startup-app-id',
