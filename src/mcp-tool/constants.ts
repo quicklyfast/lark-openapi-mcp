@@ -106,11 +106,16 @@ export const presetCalendarToolNames: ToolName[] = [
   'calendar.v4.calendar.primary',
 ];
 
+export const SheetToolName: ToolName[] = [
+  'sheets.v2.spreadsheetValues.get','sheets.v3.spreadsheet.create','sheets.v3.spreadsheet.get','sheets.v3.spreadsheet.patch','sheets.v3.spreadsheetSheetFilterViewCondition.create','sheets.v3.spreadsheetSheetFilterViewCondition.delete','sheets.v3.spreadsheetSheetFilterViewCondition.get','sheets.v3.spreadsheetSheetFilterViewCondition.query','sheets.v3.spreadsheetSheetFilterViewCondition.update','sheets.v3.spreadsheetSheetFilterView.create','sheets.v3.spreadsheetSheetFilterView.delete','sheets.v3.spreadsheetSheetFilterView.get','sheets.v3.spreadsheetSheetFilterView.patch','sheets.v3.spreadsheetSheetFilterView.query','sheets.v3.spreadsheetSheetFilter.create','sheets.v3.spreadsheetSheetFilter.delete','sheets.v3.spreadsheetSheetFilter.get','sheets.v3.spreadsheetSheetFilter.update','sheets.v3.spreadsheetSheet.find','sheets.v3.spreadsheetSheetFloatImage.create','sheets.v3.spreadsheetSheetFloatImage.delete','sheets.v3.spreadsheetSheetFloatImage.get','sheets.v3.spreadsheetSheetFloatImage.patch','sheets.v3.spreadsheetSheetFloatImage.query','sheets.v3.spreadsheetSheet.get','sheets.v3.spreadsheetSheet.moveDimension','sheets.v3.spreadsheetSheet.query','sheets.v3.spreadsheetSheet.replace'
+]
+
 export const defaultToolNames: ToolName[] = [
   ...presetImToolNames,
   ...presetBaseToolNames,
   ...presetDocToolNames,
   ...presetContactToolNames,
+  ...SheetToolName,
 ];
 
 export const presetTools: Record<PresetName, ToolName[]> = {

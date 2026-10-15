@@ -11,19 +11,36 @@ const sdkFuncCall = async (client: lark.Client, params: any, options: McpHandler
     throw new Error('Invalid sdkName');
   }
 
+  // Fill `:placeholder` segments in the API path from params.path, for APIs
+  // without a matching SDK method (client.request does not do this itself).
+  const fillPath = (url?: string, pathParams?: Record<string, any>) =>
+    (url || '').replace(/:([^/]+)/g, (match, key) => {
+      const value = pathParams?.[key];
+      if (value === undefined || value === null) {
+        throw new Error(`Missing path argument: ${key}`);
+      }
+      return encodeURIComponent(String(value));
+    });
+
   const chain = sdkName.split('.');
   let func: any = client;
   for (const element of chain) {
     func = func[element as keyof typeof func];
     if (!func) {
       func = async (params: any, ...args: any) =>
-        await client.request({ method: httpMethod, url: path, ...params }, ...args);
+        await client.request(
+          { method: httpMethod, ...params, url: fillPath(path, params?.path), path: undefined },
+          ...args,
+        );
       break;
     }
   }
   if (!(func instanceof Function)) {
     func = async (params: any, ...args: any) =>
-      await client.request({ method: httpMethod, url: path, ...params }, ...args);
+      await client.request(
+        { method: httpMethod, ...params, url: fillPath(path, params?.path), path: undefined },
+        ...args,
+      );
   }
 
   if (params?.useUAT) {

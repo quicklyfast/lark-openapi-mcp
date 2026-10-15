@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export type sheetsV3ToolName =
+  | 'sheets.v2.spreadsheetValues.get'
   | 'sheets.v3.spreadsheet.create'
   | 'sheets.v3.spreadsheet.get'
   | 'sheets.v3.spreadsheet.patch'
@@ -27,6 +28,53 @@ export type sheetsV3ToolName =
   | 'sheets.v3.spreadsheetSheet.moveDimension'
   | 'sheets.v3.spreadsheetSheet.query'
   | 'sheets.v3.spreadsheetSheet.replace';
+export const sheetsV2SpreadsheetValuesGet = {
+  project: 'sheets',
+  name: 'sheets.v2.spreadsheetValues.get',
+  sdkName: 'sheets.v2.spreadsheetValues.get',
+  path: '/open-apis/sheets/v2/spreadsheets/:spreadsheetToken/values/:range',
+  httpMethod: 'GET',
+  description:
+    '[飞书/Lark]-云文档-电子表格-单元格-读取单个范围-读取电子表格中单个指定范围的数据。该接口返回数据的最大限制为 10 MB，且不支持获取跨表引用和数组公式的计算结果',
+  accessTokens: ['tenant', 'user'],
+  schema: {
+    params: z
+      .object({
+        valueRenderOption: z
+          .enum(['ToString', 'Formula', 'FormattedValue', 'UnformattedValue'])
+          .describe(
+            '指定单元格数据的格式。可选值：ToString：返回纯文本的值（数值类型除外）；Formula：单元格中含有公式时，返回公式本身；FormattedValue：计算并格式化单元格；UnformattedValue：计算但不对单元格进行格式化。参数缺省时，默认不进行公式计算，返回公式本身，且单元格为数值格式',
+          )
+          .optional(),
+        dateTimeRenderOption: z
+          .literal('FormattedString')
+          .describe(
+            '指定数据类型为日期、时间、或时间日期的单元格数据的格式。不传值时默认返回浮点数值，整数部分为自 1899 年 12 月 30 日以来的天数，小数部分为该时间占 24 小时的份额；取值 FormattedString 时，接口将计算并返回格式化后的字符串，但不会对数字进行格式化',
+          )
+          .optional(),
+        user_id_type: z
+          .enum(['open_id', 'union_id'])
+          .describe(
+            '当单元格中包含@用户等涉及用户信息的元素时，该参数可指定返回的用户 ID 类型。默认为 lark_id，建议选择 open_id 或 union_id',
+          )
+          .optional(),
+      })
+      .optional(),
+    path: z.object({
+      spreadsheetToken: z
+        .string()
+        .describe(
+          '电子表格的 token。可从电子表格的 URL 获取：https://sample.feishu.cn/sheets/==Iow7sNNEphp3WbtnbCscPqabcef==，或调用「获取文件夹中的文件清单」获取。示例值："Iow7sNNEphp3WbtnbCscPqabcef"',
+        ),
+      range: z
+        .string()
+        .describe(
+          '查询范围。格式为 `<sheetId>!<开始位置>:<结束位置>`。其中 sheetId 为工作表 ID，通过「获取工作表」获取；数字表示行索引，字母表示列索引，如 A2:B2 表示该工作表第 2 行的 A 列到 B 列。注意：若使用 `<sheetId>!<开始单元格>:<结束列>` 和 `<sheetId>!<开始列>:<结束列>` 的写法时，仅支持获取 100 列数据。示例值："Q7PlXT!A1:B2"',
+        ),
+    }),
+    useUAT: z.boolean().describe('使用用户访问凭证，否则使用应用访问凭证').optional(),
+  },
+};
 export const sheetsV3SpreadsheetCreate = {
   project: 'sheets',
   name: 'sheets.v3.spreadsheet.create',
@@ -936,6 +984,7 @@ export const sheetsV3SpreadsheetSheetReplace = {
   },
 };
 export const sheetsV3Tools = [
+  sheetsV2SpreadsheetValuesGet,
   sheetsV3SpreadsheetCreate,
   sheetsV3SpreadsheetGet,
   sheetsV3SpreadsheetPatch,

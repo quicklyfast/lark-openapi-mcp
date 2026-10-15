@@ -1,5 +1,6 @@
 import { z } from 'zod';
 export type sheetsV3ToolName =
+  | 'sheets.v2.spreadsheetValues.get'
   | 'sheets.v3.spreadsheet.create'
   | 'sheets.v3.spreadsheet.get'
   | 'sheets.v3.spreadsheet.patch'
@@ -27,6 +28,53 @@ export type sheetsV3ToolName =
   | 'sheets.v3.spreadsheetSheet.moveDimension'
   | 'sheets.v3.spreadsheetSheet.query'
   | 'sheets.v3.spreadsheetSheet.replace';
+export const sheetsV2SpreadsheetValuesGet = {
+  project: 'sheets',
+  name: 'sheets.v2.spreadsheetValues.get',
+  sdkName: 'sheets.v2.spreadsheetValues.get',
+  path: '/open-apis/sheets/v2/spreadsheets/:spreadsheetToken/values/:range',
+  httpMethod: 'GET',
+  description:
+    '[Feishu/Lark]-Docs-Sheets-Cell-Read a single range-Read the data of a single specified range in the spreadsheet. The returned data is limited to 10 MB. Calculation results of cross-sheet references and array formulas are not supported',
+  accessTokens: ['tenant', 'user'],
+  schema: {
+    params: z
+      .object({
+        valueRenderOption: z
+          .enum(['ToString', 'Formula', 'FormattedValue', 'UnformattedValue'])
+          .describe(
+            'Specify the format of the cell data. Options: ToString: return plain text values (except number type); Formula: return the formula itself when the cell contains a formula; FormattedValue: calculate and format the cell; UnformattedValue: calculate but do not format the cell. When omitted, formulas are not calculated and are returned as-is, and cells are in number format',
+          )
+          .optional(),
+        dateTimeRenderOption: z
+          .literal('FormattedString')
+          .describe(
+            'Specify the format of cells whose data type is date, time or datetime. When omitted, a float is returned (the integer part is the number of days since 1899-12-30, the decimal part is the fraction of 24 hours). Set to FormattedString to calculate and return formatted strings for date/time/datetime values, without formatting numbers',
+          )
+          .optional(),
+        user_id_type: z
+          .enum(['open_id', 'union_id'])
+          .describe(
+            'When the cell contains elements involving user information such as @user, this parameter specifies the type of user ID returned. Default is lark_id; open_id or union_id is recommended. Options: open_id, union_id',
+          )
+          .optional(),
+      })
+      .optional(),
+    path: z.object({
+      spreadsheetToken: z
+        .string()
+        .describe(
+          'Spreadsheet token. Can be obtained from the spreadsheet URL: https://sample.feishu.cn/sheets/==Iow7sNNEphp3WbtnbCscPqabcef==, or by calling the [get list of files in folder] API. Example: "Iow7sNNEphp3WbtnbCscPqabcef"',
+        ),
+      range: z
+        .string()
+        .describe(
+          'Query range in the format `<sheetId>!<start position>:<end position>`, where sheetId is the worksheet ID obtained via [query worksheet]. Numbers indicate the row index and letters indicate the column index, e.g. A2:B2 means columns A to B of row 2. Note: when using `<sheetId>!<start cell>:<end column>` or `<sheetId>!<start column>:<end column>`, only 100 columns of data can be retrieved. Example: "Q7PlXT!A1:B2"',
+        ),
+    }),
+    useUAT: z.boolean().describe('Use user access token, otherwise use tenant access token').optional(),
+  },
+};
 export const sheetsV3SpreadsheetCreate = {
   project: 'sheets',
   name: 'sheets.v3.spreadsheet.create',
@@ -780,6 +828,7 @@ export const sheetsV3SpreadsheetSheetReplace = {
   },
 };
 export const sheetsV3Tools = [
+  sheetsV2SpreadsheetValuesGet,
   sheetsV3SpreadsheetCreate,
   sheetsV3SpreadsheetGet,
   sheetsV3SpreadsheetPatch,
